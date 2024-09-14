@@ -16,7 +16,9 @@
 #define _BS2 13    // -> ATMega32A/40-PA0
 
 // DATA :
-const int _DATA[8] = { 15, 2, 0, 4, 16, 17, 5, 18 };  //-> ATMega32A/PORTB(PB7-0)
+const int _DATA[8] = { 
+  15, 2, 0, 4, 
+  16, 17, 5, 18 };  //-> ATMega32A/PORTB(PB7-0)
 
 // POWER :
 #define _RST 21  // -> ATMega32A/09-RESET(+12V)
@@ -103,22 +105,27 @@ void writefuse(bool fuse[], bool highbyte) {
   digitalWrite(_WR, HIGH);
   delay(1000);  //ms
 }
-
+void print_data_pins(){
+  for(byte i = 0; i < 8; i++){
+    int read = digitalRead(_DATA[i]);
+    Serial.print(read);
+  }
+}
 void _get_fuse_data(int OE, int BS1, int BS2){
   digitalWrite(_OE, OE);
   digitalWrite(_BS1, BS1);
   digitalWrite(_BS2, BS2);
-  byte res = 0;
-  for(byte i = 0; i < 8; i++){
-    int read = digitalRead(_DATA[i]);
-    res = (res<<1)+read;
-    Serial.print(read);
-  }
-  // Serial.print('\n->res_byte = %b',res);
+  print_data_pins();
   Serial.println("\n----------------");
 }
-
+void reset_data_pins(){
+  for(int i = 0; i < 8; i++)
+    digitalWrite(_DATA[i], LOW);
+  delay(1);
+}
 void read_fuse(){
+  // Reset Data first :
+  reset_data_pins();
   // Read HFUSE :
   // OE  -> 0
   // BS2 -> 0
@@ -171,9 +178,7 @@ void setup(){
   // setup UART 
   Serial.begin(9600);
 }
-
-void loop() {
-  
+void loop() { 
 //   for (;;) {
     // while (PINC & _BUTTON) {}	// wait for button
 
@@ -195,10 +200,8 @@ void loop() {
     digitalWrite(_RST, HIGH); 
     // * Toggle _XTAL1 at least 6 times ?
     for(int i = 0; i < 7; i++){
-      digitalWrite(_XTAL1, HIGH);
-      delay(150);
-      digitalWrite(_XTAL1, LOW);
-      delay(150);
+      digitalWrite(_XTAL1, HIGH); delay(150);
+      digitalWrite(_XTAL1, LOW);  delay(150);
       Serial.println("Toggled XTAL1.");
     }
     //
@@ -254,10 +257,14 @@ void loop() {
     // * Fuse High Bits :
     // * Send Command => DATA-PORTB
     // sendcmd(0b01000000);
-    Serial.println("Write HFUSE..");
+    Serial.println("Write HFUSE:");
     sendcmd(CMD_WRITE_FUSE);
+    print_data_pins();
+    Serial.println(" <-CMD_WRITE_FUSE.");
     // * Write HFUSE with BS1/BS2 = 1/0:
     writefuse(HFUSE, 1);
+    print_data_pins();
+    Serial.println(" <-High Fuse bits.");
     // * Give WR -> LOW
     // * Wait for RDY/BSY -> HIGH
     // * Set BS1 -> 0 => select low-data-byte.
@@ -265,10 +272,14 @@ void loop() {
     // * Fuse Low Bits :
     // * Send Command => DATA-PORTB
     // sendcmd(0b01000000);
-    Serial.println("Write LFUSE..");
+    Serial.println("\nWrite LFUSE..");
     sendcmd(CMD_WRITE_FUSE);
+    print_data_pins();
+    Serial.println("<-CMD_WRITE_FUSE.");
     // * Write LFUSE with BS1/BS2 = 0/0 :
     writefuse(LFUSE, 0);
+    print_data_pins();
+    Serial.println(" <-High Fuse bits.");
     // * Give WR -> LOW
     // * Wait for RDY/BSY -> HIGH
 
