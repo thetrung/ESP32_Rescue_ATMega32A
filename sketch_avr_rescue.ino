@@ -38,7 +38,6 @@ void sendcmd(bool command[]) {
   // PC4-SDA
   // PORTC |= _XA1;
   digitalWrite(_XA1, HIGH);
-  
 
   // PB5-SCK & PB1-OC1A
   // PORTB &= ~(_XA0|_BS1);
@@ -50,17 +49,15 @@ void sendcmd(bool command[]) {
   for (int i = 0; i < 8; i++) {
     digitalWrite(_DATA[i], command[i] == 0 ? LOW : HIGH);
   }
-
   //
   // Crystal pulse 1000-Hz
   //
   // PORTC |= _XTAL1;
   digitalWrite(_XTAL1, HIGH);
-  delay(1000);
+  delay(1);
 
   // PORTC &= ~(_XTAL1);
   digitalWrite(_XTAL1, LOW);
-  delay(1);
 }
 
 // Default ATMega32A fuse bits :
@@ -78,16 +75,19 @@ void writefuse(bool fuse[], bool highbyte) {
 
   // // Give XTAL a positive pulse :
   // PORTC |= _XTAL1;
+  digitalWrite(_XTAL1, HIGH);
+  delay(1);
+  digitalWrite(_XTAL1, LOW);
   // _delay_ms(1);
   // // Disable _XTAL1
   // PORTC &= ~(_XTAL1);
 
   // HFUSE | LFUSE -> PB1-OC1A:
-  digitalWrite(_BS1, highbyte ? HIGH : LOW);
   // if (highbyte)
   // 	PORTB |= _BS1; 	 // _BS1 -> 1
   // else
   // 	PORTB &= ~(_BS1);// _BS1 -> 0
+  digitalWrite(_BS1, highbyte ? HIGH : LOW);
 
   // WR = Write FUSE (Active = LOW)
   // PORTB &= ~(_WR);	 // _WR -> 0
@@ -95,7 +95,7 @@ void writefuse(bool fuse[], bool highbyte) {
   delay(1);  //ms
 
   // Wait for RDY/BSY -> HIGH
-  while (_RDY == LOW) {
+  while (digitalRead(_RDY) == LOW) {
     delay(1);  //ms
   }
 
@@ -111,16 +111,18 @@ void print_data_pins(){
     Serial.print(read);
   }
 }
-void _get_fuse_data(int OE, int BS1, int BS2){
-  digitalWrite(_OE, OE);
+void _get_fuse_data(int BS1, int BS2){
   digitalWrite(_BS1, BS1);
   digitalWrite(_BS2, BS2);
+  digitalWrite(_OE, LOW);
   print_data_pins();
   Serial.println("\n----------------");
 }
 void reset_data_pins(){
-  for(int i = 0; i < 8; i++)
+  for(int i = 0; i < 8; i++){
     digitalWrite(_DATA[i], LOW);
+    pinMode(_DATA[i], INPUT);
+  }
   delay(1);
 }
 void read_fuse(){
@@ -131,19 +133,19 @@ void read_fuse(){
   // BS2 -> 0
   // BS1 -> 0
   Serial.print("HFUSE: ");
-  _get_fuse_data(0,0,0);
+  _get_fuse_data(1,1);
   // Read LFUSE :
   // OE  -> 0
   // BS2 -> 1
   // BS1 -> 1
   Serial.print("LFUSE: ");
-  _get_fuse_data(0,1,1);
+  _get_fuse_data(0,0);
   // Read LOCK bits :
   // OE  -> 0
   // BS2 -> 0
   // BS1 -> 1
   Serial.print("LOCKB: ");
-  _get_fuse_data(0,0,1);
+  _get_fuse_data(1,0);
   // DONE. Reset pins.
   digitalWrite(_OE, HIGH);
   digitalWrite(_BS1, LOW);
@@ -152,11 +154,10 @@ void read_fuse(){
   delay(1000);
 }
 
-
 void setup(){
 
   // Signal :
-  pinMode(_RDY, OUTPUT);
+  pinMode(_RDY, INPUT);
   pinMode(_OE, OUTPUT);
   pinMode(_WR, OUTPUT);
   pinMode(_BS1, OUTPUT);
